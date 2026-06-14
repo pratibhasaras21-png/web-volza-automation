@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\Pratibha\\\\Automation\\\\playwright-app\\\\reports\\\\failures\")",
+      "PowerShell(cd \"c:\\\\Users\\\\Pratibha\\\\Automation\\\\playwright-app\"; Get-ChildItem -Recurse -Exclude node_modules | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName)"
+    ]
+  }
+}
