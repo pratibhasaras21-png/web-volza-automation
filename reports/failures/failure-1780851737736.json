@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-07T17:02:17.735Z",
+  "step": "dismiss-otp-sent-modal",
+  "errorMessage": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Ok', { exact: true }) to be visible\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-dismiss-otp-sent-modal-1780851737571.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}

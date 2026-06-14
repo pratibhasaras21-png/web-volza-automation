@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-08T08:10:03.083Z",
+  "step": "navigate-to-search-tab",
+  "errorMessage": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('nav a, .nav-link, [role=\"tab\"]').filter({ hasText: /^Search$/i }).first() to be visible\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-navigate-to-search-tab-1780906203034.png",
+  "url": "https://app.volza.com/home"
+}

@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-07T16:49:52.578Z",
+  "step": "enter-otp",
+  "errorMessage": "locator.fill: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('input[autocomplete=\"one-time-code\"], input[placeholder*=\"OTP\"], input[placeholder*=\"otp\"], input[name*=\"otp\"]').first()\u001b[22m\n\u001b[2m    - locator resolved to <input value=\"\" readonly required=\"\" type=\"email\" name=\"email\" maxlength=\"100\" id=\"enquiryEmail\" pattern=\".+@.+\\..+\" autocomplete=\"email\" class=\"enquiry-input\" placeholder=\"Enter Your Business Email for OTP*\"/>\u001b[22m\n\u001b[2m    - fill(\"2002\")\u001b[22m\n\u001b[2m  - attempting fill action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not editable\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m      - element is not editable\u001b[22m\n\u001b[2m    - retrying fill action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    137 × waiting for element to be visible, enabled and editable\u001b[22m\n\u001b[2m        - element is not editable\u001b[22m\n\u001b[2m      - retrying fill action\u001b[22m\n\u001b[2m        - waiting 500ms\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-enter-otp-1780850992571.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}

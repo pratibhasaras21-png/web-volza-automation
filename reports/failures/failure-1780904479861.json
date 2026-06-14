@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-08T07:41:19.860Z",
+  "step": "submit-otp",
+  "errorMessage": "page.waitForLoadState: Timeout 15000ms exceeded.",
+  "screenshotPath": "reports/failures/failure-submit-otp-1780904479720.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}

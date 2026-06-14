@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-08T07:37:30.999Z",
+  "step": "verify-login-success",
+  "errorMessage": "\u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).not.\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: not \u001b[32m/signin-wizard/\u001b[39m\nReceived string: \u001b[31m\"https://www.volza.com/\u001b[7msignin-wizard\u001b[27m-step-1/\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"not toHaveURL\" with timeout 15000ms\u001b[22m\n\u001b[2m    33 × unexpected value \"https://www.volza.com/signin-wizard-step-1/\"\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-verify-login-success-1780904250893.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}

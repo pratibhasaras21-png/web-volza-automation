@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-09T04:47:32.868Z",
+  "step": "navigate-to-signin",
+  "errorMessage": "locator.waitFor: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('input[placeholder*=\"Business Email\"], input[placeholder*=\"business email\"], input[type=\"email\"]').first() to be visible\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-navigate-to-signin-1780980452857.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}

@@ -1,0 +1,8 @@
+{
+  "testName": "Volza Email OTP Login",
+  "timestamp": "2026-06-08T07:38:05.860Z",
+  "step": "wait-for-otp-page",
+  "errorMessage": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[placeholder=\"Enter the OTP sent to your Email ID\"]') to be visible\u001b[22m\n",
+  "screenshotPath": "reports/failures/failure-wait-for-otp-page-1780904285658.png",
+  "url": "https://www.volza.com/signin-wizard-step-1/"
+}
