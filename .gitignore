@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.local
 playwright-report/
 test-results/
 reports/failures/
@@ -8,3 +9,6 @@ reports/test-results.json
 *.png
 *.zip
 *.webm
+auth-state.json
+dcpl-auth-state.json
+playwright/.auth/
