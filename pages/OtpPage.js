@@ -14,6 +14,13 @@ class OtpPage {
     // page (independently of the "OTP Sent" modal LoginPage already dismisses) and intercepts
     // clicks on the OTP input underneath it until closed.
     this.troubleOtpModal = page.locator('#troubleOtpModal');
+
+    // The site reuses a generic "success" popup (#searchBoxModal) for the "OTP Sent"
+    // notification too. LoginPage.dismissOtpSentModal() closes the first occurrence after
+    // Sign In, but clicking "Send OTP" in selectEmailOtpDeliveryMethod() can trigger it again,
+    // leaving it open and intercepting clicks on the OTP input underneath it.
+    this.searchBoxModal = page.locator('#searchBoxModal');
+    this.searchBoxModalOkButton = this.searchBoxModal.locator('.search-box-popup-ok');
   }
 
   async waitForOtpPage() {
@@ -37,10 +44,33 @@ class OtpPage {
     }
   }
 
+  async dismissSearchBoxModal() {
+    try {
+      await this.searchBoxModal.waitFor({ state: 'visible', timeout: 3_000 });
+      await this.searchBoxModalOkButton.click({ timeout: 2_000 });
+      await this.searchBoxModal.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+    } catch {
+      // Modal never appeared - nothing to dismiss
+    }
+  }
+
   async enterOtp(otp) {
-    await this.dismissTroubleOtpModal();
-    await this.otpInput.click();
-    await this.otpInput.fill(otp);
+    // otpInput.click() has no built-in timeout, so if a modal keeps re-appearing
+    // (e.g. re-rendered by the page right as we dismiss it) it can retry forever
+    // instead of failing. Bound each click attempt and retry the dismiss+click a
+    // few times rather than hanging indefinitely.
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await this.dismissTroubleOtpModal();
+      await this.dismissSearchBoxModal();
+      try {
+        await this.otpInput.click({ timeout: 5_000 });
+        await this.otpInput.fill(otp);
+        return;
+      } catch (err) {
+        if (attempt === maxAttempts) throw err;
+      }
+    }
   }
 
   async submitOtp() {

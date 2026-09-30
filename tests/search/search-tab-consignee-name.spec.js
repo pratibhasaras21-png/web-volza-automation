@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+﻿const { test, expect } = require('@playwright/test');
 const { handleMaxRecordsPopup } = require('../../helpers/maxRecordsPopup');
 const { SearchPage } = require('../../pages/SearchPage');
 
@@ -79,11 +79,77 @@ test.describe('Module 6.4 - Search Tab (Consignee Name)', () => {
     return '';
   }
 
+  // Helper: read a grid column's value from every visible result row, matching
+  // the column by its header text. Returns an array of trimmed strings.
+  async function getAllRowColumnValues(page, headerRegex) {
+    const rows = page.locator('tbody tr:not(.ant-table-measure-row):has(td)');
+    await rows.first().waitFor({ state: 'visible', timeout: 20_000 });
+
+    const headerLocator = page.locator('thead th, [role="columnheader"]').filter({ hasText: headerRegex });
+    if ((await headerLocator.count()) === 0) return [];
+
+    const headerRow = headerLocator.first().locator('xpath=ancestor::tr[1]');
+    const allHeaders = headerRow.locator('th, [role="columnheader"]');
+    const totalHeaders = await allHeaders.count();
+    let columnIndex = -1;
+    for (let i = 0; i < totalHeaders; i++) {
+      const text = ((await allHeaders.nth(i).textContent()) || '').trim();
+      if (headerRegex.test(text)) { columnIndex = i; break; }
+    }
+    if (columnIndex === -1) return [];
+
+    // Read every row in one browser round-trip - the grid can hold 100+ rows.
+    return rows.evaluateAll(
+      (trs, idx) => trs.map((tr) => ((tr.querySelectorAll('td')[idx] || {}).textContent || '').trim()),
+      columnIndex
+    );
+  }
+
+  // Helper: tally consignee names across the result rows (each row is one
+  // shipment) and return the name with the highest shipment count. Skips
+  // blank / placeholder values that aren't real company names.
+  function pickConsigneeWithMostShipments(names) {
+    // Placeholder consignees such as "Z To Order and NA" are buckets for hidden
+    // names, not real companies.
+    const placeholder = /^(-+|n\/?a|not available|null|undefined)$|to\s+(the\s+)?order/i;
+    const counts = new Map();
+    for (const raw of names) {
+      const name = raw.replace(/\s+/g, ' ').trim();
+      if (!name || placeholder.test(name)) continue;
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    let best = { name: '', count: 0 };
+    for (const [name, count] of counts) {
+      if (count > best.count) best = { name, count };
+    }
+    return { ...best, counts };
+  }
+
+  // Helper: read the total record count from the results page ("Showing 1-10
+  // of 1,234 items"), falling back to the number of visible grid rows.
+  async function getResultTotalCount(page) {
+    const countText = page.locator('text=/showing .* of .* items/i').first();
+    if (await countText.isVisible({ timeout: 10_000 }).catch(() => false)) {
+      const text = (await countText.textContent()) || '';
+      const match = text.match(/of\s+([\d,]+)\s+items/i);
+      if (match) return parseInt(match[1].replace(/,/g, ''), 10);
+    }
+    return page.locator('tbody tr:not(.ant-table-measure-row):has(td)').count();
+  }
+
+  // A consignee is only picked if it appears on at least this many shipments
+  // in the HS code results, so the follow-up Consignee Name search is
+  // guaranteed to return multiple records.
+  const MIN_CONSIGNEE_SHIPMENTS = 3;
+
   for (const db of COUNTRY_DATABASES) {
     test(`${db.tcId}: Consignee Name search [${db.label}] - capture from HS 2 "${db.hsCode}" results and apply search`, async ({ page }) => {
       test.setTimeout(300_000);
 
-      await page.locator('a:has-text("Search"), [href*="search"]').first().click();
+      // Target the "New Search" nav link directly - the looser "Search" text
+      // match sometimes hit a Companies link instead.
+      await page.locator('a[href*="/workspace/search/0"], a:has-text("New Search")').first().click();
+      await page.waitForURL(/workspace\/search\/0/, { timeout: 15_000 }).catch(() => {});
       await page.waitForLoadState('domcontentloaded', { timeout: 15_000 });
 
       const searchPage = new SearchPage(page);
@@ -129,8 +195,27 @@ test.describe('Module 6.4 - Search Tab (Consignee Name)', () => {
       const gridRows = page.locator('tbody tr:not(.ant-table-measure-row):has(td)');
       await expect(gridRows.first()).toBeVisible({ timeout: 30_000 });
 
-      const consigneeName = await getFirstRowColumnValue(page, /^consignee$/i);
-      expect(consigneeName).toBeTruthy();
+      // Read the Consignee column of every result row and pick the consignee
+      // that appears on the most shipments, so the follow-up Consignee Name
+      // search returns at least MIN_CONSIGNEE_SHIPMENTS records.
+      const consigneeValues = await getAllRowColumnValues(page, /^consignee(\s+name)?$/i);
+      const picked = pickConsigneeWithMostShipments(consigneeValues);
+      console.log(
+        `[${db.tcId}] Consignee shipment counts on HS ${db.hsCode} results:`,
+        Object.fromEntries([...picked.counts].sort((a, b) => b[1] - a[1]).slice(0, 10))
+      );
+
+      let consigneeName = picked.name;
+      if (!consigneeName) {
+        // Column read failed entirely - fall back to the first row's value.
+        consigneeName = await getFirstRowColumnValue(page, /^consignee(\s+name)?$/i);
+      }
+      expect(consigneeName, 'a consignee name should be readable from the HS code results').toBeTruthy();
+      expect.soft(
+        picked.count,
+        `consignee "${consigneeName}" should have at least ${MIN_CONSIGNEE_SHIPMENTS} shipments in the HS ${db.hsCode} results`
+      ).toBeGreaterThanOrEqual(MIN_CONSIGNEE_SHIPMENTS);
+      console.log(`[${db.tcId}] Picked consignee "${consigneeName}" with ${picked.count} shipment(s)`);
 
       const fieldDropdown = page.locator('select[name="field"]').first();
       await fieldDropdown.waitFor({ state: 'visible', timeout: 10_000 });
@@ -147,18 +232,37 @@ test.describe('Module 6.4 - Search Tab (Consignee Name)', () => {
       await modalSearchInput.fill(consigneeName);
       await page.waitForTimeout(2000);
 
-      let selectAllCheckbox = consigneeModal.locator('input[type="checkbox"]').first();
-      if (!(await selectAllCheckbox.isVisible().catch(() => false))) {
-        // Results may need an explicit search trigger - click the search icon button inside the modal (not Close/Apply)
-        const modalSearchBtn = consigneeModal.locator('button').filter({ hasNotText: /close|apply|reset/i }).first();
+      // The picker lists an "All Company Start from <name>" row, an "All Company
+      // Contains <name>" row, then one row per company ID. Tick the "Start from"
+      // row so every ID variant of the consignee is covered. The header
+      // select-all checkbox ticks every ID row instead, which returns no results.
+      const startFromRow = consigneeModal.locator('tr').filter({ hasText: /All Company Start from/i }).first();
+      // The picker's lookup sometimes fails with a "Something went wrong /
+      // Network failure" alert that has a Retry button. Retry it a few times.
+      const errorAlert = page.locator('.swal-overlay--show-modal, .swal-modal').filter({ hasText: /something went wrong/i }).first();
+      // Search icon next to the input - excludes the header "×" Close button,
+      // whose accessible name comes from aria-label rather than its text.
+      const modalSearchBtn = consigneeModal
+        .locator('button:not(.close):not([aria-label="Close" i])')
+        .filter({ hasNotText: /close|apply|reset|retry/i })
+        .first();
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await startFromRow.or(errorAlert).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        if (await startFromRow.isVisible().catch(() => false)) break;
+        if (await errorAlert.isVisible().catch(() => false)) {
+          console.log(`[${db.tcId}] Consignee picker lookup failed - clicking Retry (attempt ${attempt})`);
+          await errorAlert.locator('button:has-text("Retry")').first().click().catch(() => {});
+          await errorAlert.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+        }
+        // Re-trigger the lookup with the search icon.
         if (await modalSearchBtn.isVisible().catch(() => false)) {
-          await modalSearchBtn.click();
+          await modalSearchBtn.click().catch(() => {});
           await page.waitForTimeout(2000);
         }
       }
-      selectAllCheckbox = consigneeModal.locator('input[type="checkbox"]').first();
-      await selectAllCheckbox.waitFor({ state: 'visible', timeout: 8_000 });
-      await selectAllCheckbox.click();
+      const startFromCheckbox = startFromRow.locator('input[type="checkbox"]').first();
+      await startFromCheckbox.waitFor({ state: 'visible', timeout: 8_000 });
+      await startFromCheckbox.click();
 
       const applyBtn = consigneeModal.locator('button:has-text("Apply")').first();
       await applyBtn.click();
@@ -184,6 +288,13 @@ test.describe('Module 6.4 - Search Tab (Consignee Name)', () => {
 
       const resultCount = page.locator('text=/showing .* of .* items/i').first();
       await expect.soft(resultCount).toBeVisible({ timeout: 10_000 });
+
+      const consigneeResultTotal = await getResultTotalCount(page);
+      console.log(`[${db.tcId}] Consignee Name search for "${consigneeName}" returned ${consigneeResultTotal} record(s)`);
+      expect(
+        consigneeResultTotal,
+        `Consignee Name search for "${consigneeName}" should return at least ${MIN_CONSIGNEE_SHIPMENTS} records`
+      ).toBeGreaterThanOrEqual(MIN_CONSIGNEE_SHIPMENTS);
 
       await page.waitForTimeout(10_000);
 

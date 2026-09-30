@@ -283,8 +283,13 @@ class SearchPage {
     await this.page.waitForTimeout(500);
 
     const idOption = db.idPrefix ? this.page.locator(`[id^="${db.idPrefix}"]`).first() : null;
-    const textOption = this.page.locator('li:visible, [role="option"]:visible, a:visible, div:visible')
+    // Only match the innermost element carrying the label text. Without the
+    // hasNot guard, the page's #root div matches first and clicking its centre
+    // lands on an unrelated link (e.g. Companies).
+    const optionSelector = 'li:visible, [role="option"]:visible, a:visible, div:visible';
+    const textOption = this.page.locator(optionSelector)
       .filter({ hasText: db.textFallbackRegex })
+      .filter({ hasNot: this.page.locator('li, [role="option"], a, div').filter({ hasText: db.textFallbackRegex }) })
       .first();
 
     if (idOption) {

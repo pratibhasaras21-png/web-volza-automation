@@ -34,24 +34,29 @@ test.describe('Module 12 - Countries Tab', () => {
     console.log('[TC-COUNTRY-002] Navigate to Countries tab');
     await navigateToCountriesTab(page);
 
+    // The A-Z filter is a row of plain <div class="key-search">A</div> elements
+    // (plus a default-active "All"), not <button>s - the original locator never
+    // matched anything real and just timed out.
     console.log('[TC-COUNTRY-002] Click alphabet "A"');
-    const alphaA = page.locator('button:has-text("A"), [class*="alpha"] button').filter({ hasText: /^A$/ }).first();
+    const alphaA = page.locator('.key-search', { hasText: /^A$/ }).first();
     await alphaA.waitFor({ state: 'visible', timeout: 10000 });
     await alphaA.click();
     await page.waitForTimeout(1500);
 
-    const firstCountryRow = page.locator('tbody tr, [class*="country-row"]').first();
-    await expect(firstCountryRow).toBeVisible({ timeout: 10000 });
-    const firstCountryName = await firstCountryRow.locator('td, [class*="country-name"]').first().textContent();
+    // Countries render as `.country-card-cont` cards (grid view, the default -
+    // there's no <table>/<tbody> here at all), not table rows.
+    const firstCountryCard = page.locator('.country-card-cont').first();
+    await expect(firstCountryCard).toBeVisible({ timeout: 10000 });
+    const firstCountryName = await firstCountryCard.locator('.country-card-title').first().textContent();
     expect(firstCountryName?.trim().toUpperCase().startsWith('A')).toBe(true);
     console.log(`[TC-COUNTRY-002] First country starts with A: ${firstCountryName}`);
 
     console.log('[TC-COUNTRY-002] Click alphabet "B"');
-    const alphaB = page.locator('button:has-text("B"), [class*="alpha"] button').filter({ hasText: /^B$/ }).first();
+    const alphaB = page.locator('.key-search', { hasText: /^B$/ }).first();
     await alphaB.click();
     await page.waitForTimeout(1500);
-    const firstBRow = page.locator('tbody tr, [class*="country-row"]').first();
-    const firstBName = await firstBRow.locator('td, [class*="country-name"]').first().textContent();
+    const firstBCard = page.locator('.country-card-cont').first();
+    const firstBName = await firstBCard.locator('.country-card-title').first().textContent();
     expect(firstBName?.trim().toUpperCase().startsWith('B')).toBe(true);
     console.log(`[TC-COUNTRY-002] First country starts with B: ${firstBName}`);
   });
@@ -66,7 +71,7 @@ test.describe('Module 12 - Countries Tab', () => {
     await searchInput.fill('Bangladesh');
     await page.waitForTimeout(1500);
 
-    const rows = page.locator('tbody tr, [class*="country-row"]');
+    const rows = page.locator('.country-card-cont');
     const rowCount = await rows.count();
     console.log(`[TC-COUNTRY-003] Countries shown after search: ${rowCount}`);
 
@@ -75,67 +80,62 @@ test.describe('Module 12 - Countries Tab', () => {
     console.log('[TC-COUNTRY-003] Bangladesh visible in search results');
   });
 
-  // Shared helper for the six "Sort by" dropdown variants (TC-COUNTRY-004..009)
-  async function sortByAndVerify(page, label, index) {
-    const sortDropdown = page.locator('select, [class*="sort-by"], [class*="sort-dropdown"]').first();
+  // Shared helper for the six "Sort by" dropdown variants (TC-COUNTRY-004..009).
+  // `exactLabel` must match an <option>'s visible text exactly - Playwright's
+  // selectOption({ label }) does an exact match, not a substring/regex match.
+  async function sortByAndVerify(page, exactLabel) {
+    // The page also has a Google Translate widget with its own <select> earlier
+    // in the DOM than the app's sort dropdown - `page.locator('select').first()`
+    // was grabbing that instead. Scope to the <select> that actually contains
+    // "Sort By" options.
+    const sortDropdown = page.locator('select:has(option:has-text("Sort By"))').first();
     await sortDropdown.waitFor({ state: 'visible', timeout: 10000 });
-
-    try {
-      await sortDropdown.selectOption({ label: new RegExp(label, 'i') });
-    } catch {
-      await sortDropdown.click();
-      const optEl = page.locator('li, option').filter({ hasText: new RegExp(label, 'i') }).first();
-      if (await optEl.isVisible()) {
-        await optEl.click();
-      } else {
-        await sortDropdown.selectOption({ index }).catch(() => {});
-      }
-    }
+    await sortDropdown.selectOption({ label: exactLabel });
     await page.waitForTimeout(1500);
 
-    const rows = page.locator('tbody tr, [class*="country-row"]');
+    const rows = page.locator('.country-card-cont');
     await expect(rows.first()).toBeVisible({ timeout: 10000 });
   }
 
   // ── TC-COUNTRY-004: Sort by Country Name Descending ────────────────────────
   test('TC-COUNTRY-004: Sort by dropdown - Country Name Descending (Z to A)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'Country Name Descending', 1);
+    await sortByAndVerify(page, 'Sort By Country Name in Descending Order');
     console.log('[TC-COUNTRY-004] Sorted by Country Name Descending (Z to A)');
   });
 
   // ── TC-COUNTRY-005: Sort by Country Name Ascending ─────────────────────────
   test('TC-COUNTRY-005: Sort by dropdown - Country Name Ascending (A to Z)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'Country Name Ascending', 2);
+    await sortByAndVerify(page, 'Sort By Country Name in Ascending Order');
     console.log('[TC-COUNTRY-005] Sorted by Country Name Ascending (A to Z)');
   });
 
   // ── TC-COUNTRY-006: Sort by Start Date Descending ──────────────────────────
   test('TC-COUNTRY-006: Sort by dropdown - Start Date Descending (Dec to Jan)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'Start Date Descending', 3);
+    await sortByAndVerify(page, 'Sort By Start Date in Descending Order');
     console.log('[TC-COUNTRY-006] Sorted by Start Date Descending (Dec to Jan)');
   });
 
   // ── TC-COUNTRY-007: Sort by Start Date Ascending ───────────────────────────
   test('TC-COUNTRY-007: Sort by dropdown - Start Date Ascending (Jan to Dec)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'Start Date Ascending', 4);
+    await sortByAndVerify(page, 'Sort By Start Date in Ascending Order');
     console.log('[TC-COUNTRY-007] Sorted by Start Date Ascending (Jan to Dec)');
   });
 
   // ── TC-COUNTRY-008: Sort by End Date Descending ────────────────────────────
   test('TC-COUNTRY-008: Sort by dropdown - End Date Descending (Dec to Jan)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'End Date Descending', 5);
+    await sortByAndVerify(page, 'Sort By End Date in Descending Order');
     console.log('[TC-COUNTRY-008] Sorted by End Date Descending (Dec to Jan)');
   });
 
   // ── TC-COUNTRY-009: Sort by End Date Ascending ─────────────────────────────
   test('TC-COUNTRY-009: Sort by dropdown - End Date Ascending (Jan to Dec)', async ({ page }) => {
     await navigateToCountriesTab(page);
-    await sortByAndVerify(page, 'End Date Ascending', 6);
+    await sortByAndVerify(page, 'Sort By End Date in Ascending Order');
     console.log('[TC-COUNTRY-009] Sorted by End Date Ascending (Jan to Dec)');
   });
 
@@ -152,7 +152,7 @@ test.describe('Module 12 - Countries Tab', () => {
       try {
         await allDropdown.selectOption({ label: new RegExp(filterOpt, 'i') });
         await page.waitForTimeout(1500);
-        const rows = page.locator('tbody tr, [class*="country-row"]');
+        const rows = page.locator('.country-card-cont');
         const rowCount = await rows.count();
         console.log(`[TC-COUNTRY-010] Filter "${filterOpt}" - rows: ${rowCount}`);
       } catch {
@@ -209,7 +209,10 @@ test.describe('Module 12 - Countries Tab', () => {
     console.log('[TC-COUNTRY-013] Navigate to Countries tab and download Excel');
     await navigateToCountriesTab(page);
 
-    const downloadIcon = page.locator('[class*="excel"], [class*="download"] svg, button:has-text("Download")').first();
+    // The download icon is a plain <span class="icon-sprite bg-exel_download">
+    // (note: the site's own class name typos "excel" as "exel") with no <svg>
+    // child, so `[class*="download"] svg` never matched anything.
+    const downloadIcon = page.locator('[class*="exel_download"], button:has-text("Download")').first();
     await downloadIcon.waitFor({ state: 'visible', timeout: 10000 });
     const [dl] = await Promise.all([
       page.waitForEvent('download', { timeout: 15000 }).catch(() => null),
@@ -229,11 +232,17 @@ test.describe('Module 12 - Countries Tab', () => {
     console.log('[TC-COUNTRY-014] Navigate to Countries tab');
     await navigateToCountriesTab(page);
 
-    const countryLink = page.locator('tbody td a, [class*="country-name"] a').first();
-    await countryLink.waitFor({ state: 'visible', timeout: 15000 });
-    const countryText = await countryLink.textContent();
-    console.log(`[TC-COUNTRY-014] Clicking country: ${countryText}`);
-    await countryLink.click();
+    // Grid view (the default here) has no <a> country-name link - each
+    // `.country-card-cont` card shows the name/points/dates, and a separate
+    // hover-reveal overlay (`.country-card-search` / "Search" text) is what
+    // actually navigates to the Search tab; that overlay sits on top of the
+    // title text and intercepts clicks on it, so target the overlay directly.
+    const firstCard = page.locator('.country-card-cont').first();
+    await firstCard.waitFor({ state: 'visible', timeout: 15000 });
+    const countryText = await firstCard.locator('.country-card-title').first().textContent();
+    console.log(`[TC-COUNTRY-014] Clicking country: ${countryText?.trim()}`);
+    const searchTrigger = firstCard.locator('.country-card-search, .country-sr-title').first();
+    await searchTrigger.click({ force: true, timeout: 10000 });
     await page.waitForTimeout(2000);
 
     await expect(page).toHaveURL(/search/, { timeout: 15000 });
@@ -245,17 +254,18 @@ test.describe('Module 12 - Countries Tab', () => {
     console.log('[TC-COUNTRY-015] Navigate to Countries tab');
     await navigateToCountriesTab(page);
 
-    const startDateCol = page.locator('th').filter({ hasText: /start date/i }).first();
-    const endDateCol   = page.locator('th').filter({ hasText: /end date/i }).first();
-    await expect(startDateCol).toBeVisible({ timeout: 10000 });
-    await expect(endDateCol).toBeVisible({ timeout: 10000 });
-
-    const firstRow = page.locator('tbody tr').first();
-    const cells = firstRow.locator('td');
-    const cellCount = await cells.count();
-    const startDate = cellCount > 2 ? await cells.nth(2).textContent() : '';
-    const endDate   = cellCount > 3 ? await cells.nth(3).textContent() : '';
-    console.log(`[TC-COUNTRY-015] Country start date: ${startDate?.trim()}, end date: ${endDate?.trim()}`);
+    // Grid view (the default here) has no <table>/<th> at all - there are no
+    // separate Start Date/End Date columns, just a "<Start> - <End>" range
+    // shown inline on each card (e.g. "Sep 24 - Jul 26").
+    // .country-card-title actually contains two ".frRight" spans - the
+    // favorite-icon wrapper (`.df-panel-tools.frRight`, empty text) and the
+    // date-range one - `.first()` alone was grabbing the empty icon span.
+    const firstCard = page.locator('.country-card-cont').first();
+    const dateRange = firstCard.locator('.country-card-title .frRight:not(.df-panel-tools)').first();
+    await expect(dateRange).toBeVisible({ timeout: 10000 });
+    const dateRangeText = (await dateRange.textContent())?.trim();
+    expect(dateRangeText).toMatch(/\S+\s*-\s*\S+/);
+    console.log(`[TC-COUNTRY-015] Country date range: ${dateRangeText}`);
     console.log('[TC-COUNTRY-015] Start and end dates visible in Countries grid');
   });
 });
